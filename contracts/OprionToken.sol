@@ -14,4 +14,8 @@ contract OprionToken is ERC20Detailed, ERC20Pausable, ERC20Mintable, Ownable {
         string memory _symbol,
         uint8 _decimals
     ) public ERC20Detailed(_name, _symbol, _decimals) {}
+
+    function showMintingFinished() public view returns (bool) {
+        return mintingFinished();
+    }
 }
