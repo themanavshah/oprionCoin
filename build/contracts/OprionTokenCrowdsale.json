@@ -12547,9 +12547,145 @@
     "name": "solc",
     "version": "0.5.17+commit.d19bba13.Emscripten.clang"
   },
-  "networks": {},
+  "networks": {
+    "1622884684425": {
+      "events": {
+        "0x9270cc390c096600a1c17c44345a1ba689fafd99d97487b10cfccf86cf731836": {
+          "anonymous": false,
+          "inputs": [],
+          "name": "CrowdsaleFinalized",
+          "type": "event"
+        },
+        "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "previousOwner",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipTransferred",
+          "type": "event"
+        },
+        "0x46711e222f558a07afd26e5e71b48ecb0a8b2cdcd40faeb1323e05e2c76a2f32": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "prevClosingTime",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "newClosingTime",
+              "type": "uint256"
+            }
+          ],
+          "name": "TimedCrowdsaleExtended",
+          "type": "event"
+        },
+        "0x6faf93231a456e552dbc9961f58d9713ee4f2e69d15f1975b050ef0911053a7b": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "purchaser",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "beneficiary",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "TokensPurchased",
+          "type": "event"
+        },
+        "0x22380c05984257a1cb900161c713dd71d39e74820f1aea43bd3f1bdd20961299": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "WhitelistAdminAdded",
+          "type": "event"
+        },
+        "0x0a8eb35e5ca14b3d6f28e4abf2f128dbab231a58b56e89beb5d636115001e165": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "WhitelistAdminRemoved",
+          "type": "event"
+        },
+        "0xee1504a83b6d4a361f4c1dc78ab59bfa30d6a3b6612c403e86bb01ef2984295f": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "WhitelistedAdded",
+          "type": "event"
+        },
+        "0x270d9b30cf5b0793bbfd54c9d5b94aeb49462b8148399000265144a8722da6b6": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "account",
+              "type": "address"
+            }
+          ],
+          "name": "WhitelistedRemoved",
+          "type": "event"
+        }
+      },
+      "links": {},
+      "address": "0x02f2685Df25C69763bCf9f39fD02325AC7AFf46C",
+      "transactionHash": "0xbad183ceeb2a9b7e3251af7824e6d2f32a430c9f8266ae4a82f9ae9884867380"
+    }
+  },
   "schemaVersion": "3.2.3",
-  "updatedAt": "2021-06-05T09:17:57.391Z",
+  "updatedAt": "2021-06-05T11:44:11.940Z",
+  "networkType": "ethereum",
   "devdoc": {
     "methods": {
       "buyTokens(address)": {

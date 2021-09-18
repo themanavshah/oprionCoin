@@ -41,5 +41,10 @@ contract('OprionToken', accounts => {
             const decimals = decimalin.words[0];
             decimals.should.be.bignumber.equal(_decimals);
         });
+
+        it('has the correct decimals', async function () {
+            const decimalin = await this.token.owner();
+            console.log(decimalin);
+        });
     });
 });
