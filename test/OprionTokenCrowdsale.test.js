@@ -1,7 +1,7 @@
-import { assert } from 'chai';
+import { assert, expect } from 'chai';
 import ether from './helpers/ether';
 import EVMRevert from './helpers/EVMRevert';
-import time from '@openzeppelin/test-helpers/src/time.js'
+import time, { duration, increaseTo } from '@openzeppelin/test-helpers/src/time.js'
 import latestTime from './helpers/latestTime';
 
 var Web3 = require('web3');
@@ -15,10 +15,15 @@ require("chai")
 
 const OprionToken = artifacts.require('OprionToken');
 const OprionTokenCrowdsale = artifacts.require('OprionTokenCrowdsale');
+const TokenTimelock = artifacts.require('TokenTimelock');
 //const RefundVault = artifacts.require('./RefundVault');
 
 
-contract('OprionTokenCrowdsale', function ([_, wallet, investor1, investor2]) {
+contract('OprionTokenCrowdsale', function ([_, wallet, investor1, investor2, foundersFund, foundationFund, partnersFund]) {
+
+    // beforeEach(async function () {
+    //     await web3.eth.sendTransaction({ from: _, to: investor1, value: ether(10) })
+    // })
 
     beforeEach(async function () {
         this.name = "Oprion";
@@ -37,6 +42,10 @@ contract('OprionTokenCrowdsale', function ([_, wallet, investor1, investor2]) {
         this.cap = ether(100);
         this.goal = ether(50);
 
+        this.foundersFund = foundersFund;
+        this.foundationFund = foundationFund;
+        this.partnersFund = partnersFund;
+
         this.investorMinCap = ether(0.002);
         this.investorHardCap = ether(50);
 
@@ -50,12 +59,20 @@ contract('OprionTokenCrowdsale', function ([_, wallet, investor1, investor2]) {
         this.preICOrate = 500;
         this.ICORate = 250;
 
+        this.tokenSalesPercentage = 70;
+        this.foundersPercentage = 10;
+        this.foundationPercentage = 10;
+        this.partnersPercentage = 10;
+        this.totalPercentage = 100;
+
 
         console.log('latesttime: ', this.latestTime)
         this.openingTime = parseInt(this.latestTime) + parseInt(time.duration.weeks(1));
-        this.closingTime = this.openingTime + time.duration.weeks(1);
+        this.closingTime = parseInt(this.openingTime) + parseInt(time.duration.weeks(1));
 
         console.log('openingtime: ', this.openingTime);
+        this.releaseTime = parseInt(this.closingTime) + parseInt(duration.years(1));
+        console.log("releasetime: ", this.releaseTime);
 
         this.crowdsale = await OprionTokenCrowdsale.new(
             this.preICOrate,
@@ -64,24 +81,38 @@ contract('OprionTokenCrowdsale', function ([_, wallet, investor1, investor2]) {
             this.cap,
             this.openingTime,
             this.closingTime,
-            this.cap
+            this.goal,
+            this.foundersFund,
+            this.foundationFund,
+            this.partnersFund,
+            this.releaseTime
         );
+
+        await this.token.pause();
+        //console.log(this.crowdsale);
         await this.token.addMinter(this.crowdsale.address);
+        await this.token.addPauser(this.crowdsale.address);
+        const previousOwner = await this.token.owner();
+        console.log("previous owner: ", previousOwner);
         await this.token.transferOwnership(this.crowdsale.address);
 
-        // this.vaultAddress = await this.crowdsale.valut();
-        // this.vault = RefundVault.at(this.vaultAddress);
 
         await this.crowdsale.addWhitelisted(investor1);
         await this.crowdsale.addWhitelisted(investor2);
 
         await time.increaseTo(this.openingTime + 1);
+
     });
 
 
     describe('crowdsale', function () {
 
         it('trcaks the rate', async function () {
+            console.log("_: ", _)
+            console.log("wallet: ", wallet)
+            console.log("investor1: ", investor1)
+            console.log("investor2: ", investor2)
+            console.log("crowdsale address: ", this.crowdsale.address);
             const rateinit = await this.crowdsale.rate();
             const rate = rateinit.words[0];
             rate.should.be.bignumber.equal(this.preICOrate);
@@ -99,6 +130,12 @@ contract('OprionTokenCrowdsale', function ([_, wallet, investor1, investor2]) {
     });
 
     describe('minted tokens', function () {
+        beforeEach(async function () {
+
+            const dfdfe = await this.token.owner();
+            console.log("ownership point1: ", dfdfe);
+
+        });
         it('mints tokens after purchase', async function () {
             const originallyTotalSupply = await this.token.totalSupply();
             await this.crowdsale.buyTokens(investor1, { value: ether(1) });
@@ -166,25 +203,49 @@ contract('OprionTokenCrowdsale', function ([_, wallet, investor1, investor2]) {
         it('has a set amount of rate in preICOStae', async function () {
             await this.crowdsale.setCrowdsaleStage(this.preICOStage, { from: _ });
             const rate = await this.crowdsale.rate();
-            console.log("PreICOrate :", rate);
-            rate.words[0].should.be.bignumber.equal(this.preICOrate);
+            console.log("PreICOrate :", rate.words[0]);
+            console.log("PreICOrate2 :", this.preICOrate);
+            assert(rate.words[0], this.preICOrate);
+            //rate.words[0].should.be.bignumber.equal(this.preICOrate);
         });
 
         it('has a set amount of rate in ICOStae', async function () {
             await this.crowdsale.setCrowdsaleStage(this.ICOStage, { from: _ });
             const rate = await this.crowdsale.rate();
-            console.log("ICOrate :", rate);
-            rate.words[0].should.be.bignumber.equal(this.ICOrate);
+            console.log("ICOrate :", rate.words[0]);
+            console.log("ICOrate2 :", this.ICORate);
+            assert(rate.words[0], this.ICORate);
+            //rate.words[0].should.be.bignumber.equal(this.ICOrate);
         });
     });
 
-    // describe('preICO stages', function () {
-    //     it('has a rate in rang of PreICO & ICO', async function () {
-    //         await this.crowdsale.setCrowdsaleStage(this.PreICOStage, { from: _ });
-    //         const rate = await this.crowdsale.rate();
-    //         console.log("PreICOrate :", rate);
+    describe('when crowdsale in preICO', function () {
+
+        beforeEach(async function () {
+            await this.crowdsale.buyTokens(investor1, { value: ether(1), from: investor1 });
+        })
+        it('forwards funds to the wallet', async function () {
+            const escrowAddress = await this.crowdsale.viewEscrowFunds();
+            const balance = await web3.eth.getBalance(escrowAddress);
+            // const viewEscrow = await this.crowdsale.getEscrowFunds();
+            // console.log(viewEscrow);
+            console.log("balancePreICO: ", balance);
+            expect(Number(balance)).to.be.above(ether(100).words[0]);
+        });
+    });
+
+    // describe('when crowdsale in ICO', function () {
+    //     beforeEach(async function () {
+    //         await this.crowdsale.setCrowdsaleStage(this.ICOStage, { from: _ });
+    //         await this.crowdsale.buyTokens(investor1, { value: ether(1), from: investor1 });
+    //     })
+    //     it('forwards funds to the escrow fund', async function () {
+    //         const escrowAddress = await this.crowdsale.viewEscrowFunds();
+    //         const balance = await web3.eth.getBalance(escrowAddress);
+    //         console.log("balanceICO: ", balance);
+    //         expect(Number(balance)).to.be.above(ether(0).words[0]);
     //     });
-    // })
+    // });
 
 
 
@@ -249,6 +310,198 @@ contract('OprionTokenCrowdsale', function ([_, wallet, investor1, investor2]) {
             const contribution = await this.crowdsale.getUserContribution(investor2);
             //console.log("contributions: ", contribution.words[0], value);
             contribution.words[0].should.be.bignumber.equal(value.words[0])
+        })
+    });
+
+    describe('token transfers', function () {
+        it('does not allow investors to transfer tokens during crowdsale', async function () {
+            await this.crowdsale.buyTokens(investor1, { value: ether(1), from: investor1 });
+            await this.token.transfer(investor2, 1, { from: investor1 }).should.be.rejectedWith(EVMRevert);
+        })
+    })
+
+    describe('finalize the crowdsale', function () {
+        // describe('when the goal is not reached', function () {
+        //     beforeEach(async function () {
+        //         await this.crowdsale.buyTokens(investor1, { value: ether(1), from: investor1 });
+        //         await time.increaseTo(parseInt(this.closingTime) + 1);
+        //         await this.crowdsale.finalize({ from: _ });
+        //     });
+
+        //     it('allows investor claim refund', async function () {
+        //         await this.crowdsale.claimRefund(investor1).should.be.fulfilled;
+        //     })
+
+        // });
+
+        describe('when the goal is reached', function () {
+            beforeEach(async function () {
+
+                const dfdfe = await this.token.owner();
+                console.log("ownership point1: ", dfdfe);
+                this.walletBalance = await web3.eth.getBalance(wallet);
+                console.log(this.walletBalance);
+
+                await this.crowdsale.buyTokens(investor1, { value: ether(26), from: investor1 });
+                const capRaised = await this.crowdsale.cap();
+                console.log(capRaised.toString());
+                const weirasied = await this.crowdsale.weiRaised();
+                console.log(weirasied.toString())
+                await this.crowdsale.buyTokens(investor2, { value: ether(26), from: investor2 });
+
+                await time.increaseTo(parseInt(this.closingTime) + 1);
+                await this.crowdsale.finalize({ from: _ });
+                // //const eventListen = await this.crowdsale.events;
+                // const eventsX = await web3.eth.subscribe('logs');
+                // console.log("Events: ", eventsX);
+
+                // const erer = await this.token.owner();
+                // console.log("ownership point2: ", erer);
+
+            });
+
+            it('handels goal reached', async function () {
+                //Token goal reached
+                const goalreached = await this.crowdsale.goalReached();
+                console.log(goalreached)
+                goalreached.should.be.true;
+
+                //Finshes miniting token 
+                const mintingfinshed = await this.token.showMintingFinished();
+                console.log(mintingfinshed);
+                mintingfinshed.should.be.true;
+
+                await this.token.pause();
+                const unpause = await this.token.unpause();
+                console.log(unpause);
+                // const tokenX = this.token;
+                // console.log(tokenX);
+                const paused = await this.token.paused();
+                paused.should.be.false;
+
+                await this.token.transfer(investor2, 1, { from: investor2 }).should.be.fulfilled;
+
+                let totalSupply = await this.token.totalSupply();
+                totalSupply = totalSupply.toString();
+
+                //Founders
+                const foundersTimelockAddress = await this.crowdsale.foundersTimelock();
+                let foundersTimelockBalance = await this.token.balanceOf(foundersTimelockAddress);
+                foundersTimelockBalance = foundersTimelockBalance.toString();
+                foundersTimelockBalance = foundersTimelockBalance / (10 ** this.decimals);
+
+                let foundersAmount = totalSupply / this.foundersPercentage;
+                foundersAmount = foundersAmount.toString();
+                foundersAmount = foundersAmount / (10 ** this.decimals);
+
+                assert.equal(foundersTimelockBalance.toString(), foundersAmount.toString());
+
+                //Partners
+                const partnersTimelockAddress = await this.crowdsale.partnersTimelock();
+                let partnersTimelockBalance = await this.token.balanceOf(partnersTimelockAddress);
+                partnersTimelockBalance = partnersTimelockBalance.toString();
+                partnersTimelockBalance = partnersTimelockBalance / (10 ** this.decimals);
+
+                let partnersAmount = totalSupply / this.partnersPercentage;
+                partnersAmount = partnersAmount.toString();
+                partnersAmount = partnersAmount / (10 ** this.decimals);
+
+                assert.equal(partnersTimelockBalance.toString(), partnersAmount.toString());
+
+                //Foundation
+                const foundationTimelockAddress = await this.crowdsale.foundationTimelock();
+                let foundationTimelockBalance = await this.token.balanceOf(foundationTimelockAddress);
+                foundationTimelockBalance = foundationTimelockBalance.toString();
+                foundationTimelockBalance = foundationTimelockBalance / (10 ** this.decimals);
+
+                let foundationAmount = totalSupply / this.foundationPercentage;
+                foundationAmount = foundationAmount.toString();
+                foundationAmount = foundationAmount / (10 ** this.decimals);
+
+                assert.equal(foundationTimelockBalance.toString(), foundationAmount.toString());
+
+                //can't withdraw from Timelocks
+                const foundersTimelock = await TokenTimelock.at(foundersTimelockAddress);
+                await foundersTimelock.release().should.be.rejectedWith(EVMRevert);
+
+                const foundationTimelock = await TokenTimelock.at(foundationTimelockAddress);
+                await foundationTimelock.release().should.be.rejectedWith(EVMRevert);
+
+                const partnersTimelock = await TokenTimelock.at(partnersTimelockAddress);
+                await partnersTimelock.release().should.be.rejectedWith(EVMRevert);
+
+                //allow them to wirhdraw after release time
+                await time.increaseTo(parseInt(this.releaseTime) + 1);
+
+                await foundersTimelock.release().should.be.fulfilled;
+                await foundationTimelock.release().should.be.fulfilled;
+                await partnersTimelock.release().should.be.fulfilled;
+
+                //Funds now have balances
+
+                //Founders
+                let foundersBalance = await this.token.balanceOf(this.foundersFund);
+                foundersBalance = foundersBalance.toString();
+                foundersBalance = foundersBalance / (10 ** this.decimals);
+
+                //Foundation
+                let foundationBalance = await this.token.balanceOf(this.foundationFund);
+                foundationBalance = foundationBalance.toString();
+                foundationBalance = foundationBalance / (10 ** this.decimals);
+
+                //partners
+                let partnersBalance = await this.token.balanceOf(this.partnersFund);
+                partnersBalance = partnersBalance.toString();
+                partnersBalance = partnersBalance / (10 ** this.decimals);
+
+                assert.equal(foundersBalance.toString(), foundersAmount.toString());
+                assert.equal(foundationBalance.toString(), foundationAmount.toString());
+                assert.equal(partnersBalance.toString(), partnersAmount.toString());
+
+                // const owx = await this.crowdsale.address;
+                // console.log(owx)
+                await this.token.transferOwnership(this.wallet);
+                const ownerX = await this.token.owner();
+                //console.log(ownerX);
+                ownerX.should.be.equal(this.wallet);
+
+                //prevent investor from claiming refund
+                await this.crowdsale.claimRefund(investor1).should.be.rejectedWith(EVMRevert);
+            })
+
+        });
+
+        describe('token distribution', function () {
+            it('has 70% in tokenSale percentage', async function () {
+                const tokenSaleper = await this.crowdsale.tokenSalesPercentage();
+                console.log(tokenSaleper);
+                tokenSaleper.toString().should.be.bignumber.equal(this.tokenSalesPercentage);
+            });
+
+            it('has 10% in founders percentage', async function () {
+                const founderPer = await this.crowdsale.foundersPercentage();
+                founderPer.toString().should.be.bignumber.equal(this.foundersPercentage);
+            });
+
+            it('has 10% in foundation percentage', async function () {
+                const foundationPer = await this.crowdsale.foundationPercentage();
+                foundationPer.toString().should.be.bignumber.equal(this.foundationPercentage);
+            });
+
+            it('has 10% in partners percentage', async function () {
+                const partnerPer = await this.crowdsale.partnersPercentage();
+                partnerPer.toString().should.be.bignumber.equal(this.partnersPercentage);
+            });
+
+            it('is valid percentage number', async function () {
+                const tokenSaleper = await this.crowdsale.tokenSalesPercentage();
+                const founderPer = await this.crowdsale.foundersPercentage();
+                const foundationPer = await this.crowdsale.foundationPercentage();
+                const partnerPer = await this.crowdsale.partnersPercentage();
+                const totalPercentage = parseInt(tokenSaleper.toString()) + parseInt(founderPer.toString()) + parseInt(foundationPer.toString()) + parseInt(partnerPer.toString())
+                totalPercentage.toString().should.be.bignumber.equal(this.totalPercentage);
+
+            });
         })
     });
 
